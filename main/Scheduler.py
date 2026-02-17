@@ -12,6 +12,7 @@ TG_CHAT_ID = int(os.getenv("TG_CHAT_ID"))
 
 # Список задач: каждая задача — это словарь с ключами 'hour', 'minute', 'text'
 TASKS = [
+    {"hour": 7, "minute": 00, "text": "Доброе утро!"},
     {"hour": 8, "minute": 30, "text": "Удачи в учебе!"},
     {"hour": 10, "minute": 00, "text": "Завтрак в школе!"},
     {"hour": 12, "minute": 40, "text": "Обед в школе!"},
