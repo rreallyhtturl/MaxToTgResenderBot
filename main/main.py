@@ -99,7 +99,7 @@ def onmessage(client: Client, message: Message):
 <b>❯ Операция:</b> <U>❌Удалил(а) сообщение:</U>
 
 <b>💬 Сообщение:</b> 
-{msg_text}
+❯ {msg_text}
 <b>{datetime.now().strftime('%H:%M:%S')}</b>
 {get_file_url(message)}
 {check_file_type(message)}""",
@@ -114,7 +114,7 @@ def onmessage(client: Client, message: Message):
 <b>❯ Операция:</b> <U>✏️Изменил(а) сообщение:</U>
 
 <b>💬 Сообщение: 
-{msg_text}</b>
+❯ {msg_text}</b>
 <b>🕒 {datetime.now().strftime('%H:%M:%S')}</b>
 {get_file_url(message)}
 {check_file_type(message)}""",
@@ -129,7 +129,7 @@ def onmessage(client: Client, message: Message):
 {forward if link else '<b>❯ Операция:</b> <U>📨Отправил(а) сообщение</U>'}
 
 <b>💬 Сообщение:</b> 
-{msg_text}
+❯ {msg_text}
 <b>🕒 {datetime.now().strftime('%H:%M:%S')}</b>
 {get_file_url(message)}
 {check_file_type(message)}""",
