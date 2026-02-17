@@ -98,7 +98,8 @@ def onmessage(client: Client, message: Message):
 👤 {name}</b>:
 <b>❯ Операция:</b> <U>❌Удалил(а) сообщение:</U>
 
-<b>💬 Сообщение:</b> {msg_text}
+<b>💬 Сообщение:</b> 
+{msg_text}
 <b>{datetime.now().strftime('%H:%M:%S')}</b>
 {get_file_url(message)}
 {check_file_type(message)}""",
@@ -112,7 +113,8 @@ def onmessage(client: Client, message: Message):
 👤 {name}</b>
 <b>❯ Операция:</b> <U>✏️Изменил(а) сообщение:</U>
 
-<b>💬 Сообщение: {msg_text}</b>
+<b>💬 Сообщение: 
+{msg_text}</b>
 <b>🕒 {datetime.now().strftime('%H:%M:%S')}</b>
 {get_file_url(message)}
 {check_file_type(message)}""",
@@ -126,7 +128,8 @@ def onmessage(client: Client, message: Message):
 👤 {name}</b>
 {forward if link else '<b>❯ Операция:</b> <U>📨Отправил(а) сообщение</U>'}
 
-<b>💬 Сообщение:</b> {msg_text}
+<b>💬 Сообщение:</b> 
+{msg_text}
 <b>🕒 {datetime.now().strftime('%H:%M:%S')}</b>
 {get_file_url(message)}
 {check_file_type(message)}""",
