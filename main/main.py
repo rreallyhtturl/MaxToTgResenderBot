@@ -93,7 +93,8 @@ def onmessage(client: Client, message: Message):
                         TG_CHAT_ID,
                         f"""
 {get_chatname(message)}
-<b>📜 Чат: \"{message.chatname}\"; 👤 {name}</b>:
+<b>📜 Чат: \"{message.chatname}\" 
+👤 {name}</b>:
 <b>❯ Операция:</b> <U>❌Удалил(а) сообщение:</U>
 
 <b>💬 Сообщение:</b> {msg_text}
@@ -106,7 +107,8 @@ def onmessage(client: Client, message: Message):
                         TG_BOT_TOKEN,
                         TG_CHAT_ID,
                         f"""
-<b>📜 Чат: \"{message.chatname}\"; 👤 {name}</b>
+<b>📜 Чат: \"{message.chatname}\"
+👤 {name}</b>
 <b>❯ Операция:</b> <U>✏️Изменил(а) сообщение:</U>
 
 <b>💬 Сообщение: {msg_text}</b>
@@ -119,7 +121,8 @@ def onmessage(client: Client, message: Message):
                         TG_BOT_TOKEN,
                         TG_CHAT_ID,
                         f"""
-<b>📜 Чат: \"{message.chatname}\"; 👤 {name}</b>
+<b>📜 Чат: \"{message.chatname}\"; 
+👤 {name}</b>
 {forward if link else '<b>❯ Операция:</b> <U>📨Отправил(а) сообщение</U>'}
 
 <b>💬 Сообщение:</b> {msg_text}
