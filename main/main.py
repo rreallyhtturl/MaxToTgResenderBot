@@ -10,6 +10,7 @@ import threading
 import os
 import json
 from datetime import datetime
+from Scheduler import start_scheduler
 
 load_dotenv()
 MAX_TOKEN = os.getenv("MAX_TOKEN")
@@ -279,4 +280,8 @@ def status_bot():
 
 if __name__ == "__main__":
     client.run()
+    threading.Thread(target=status_bot, daemon=True).start()
+
+    start_scheduler()
+
     threading.Thread(target=status_bot, daemon=True).start()
