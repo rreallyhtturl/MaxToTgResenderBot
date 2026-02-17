@@ -64,7 +64,8 @@ def get_file_url(message: Message) -> str:
 @client.on_connect
 def onconnect():
     if client.me != None:
-        print(f'[{client.current_time()}] Имя: {client.me.contact.names[0].name}, Номер: {client.me.contact.phone} | ID: {client.me.contact.id}\n')
+        print(f'[{client.current_time()}] Имя: {client.me.contact.names[0].name}, Номер: {client.me.contact.phone}'
+              f' | ID: {client.me.contact.id}\n')
 
 @client.on_message(filters.any())
 def onmessage(client: Client, message: Message):
@@ -173,7 +174,7 @@ def status_bot():
 
 <b>Ведется разработка на языке Java</b>
 
-<U>Версия: 0.9.8 beta от 17.02.26</U>
+<U>Версия: 0.9.8.1 beta от 17.02.26</U>
 
 Чтобы увидеть список команд,
 введите /help
