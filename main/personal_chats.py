@@ -1,7 +1,20 @@
 import json
+import os
 from pathlib import Path
+from dotenv import load_dotenv
 
-PERSONAL_CHATS_FILE = Path(__file__).parent / "personal_chats.json"
+# Загружаем переменные окружения (если ещё не загружены)
+load_dotenv()
+
+# Получаем путь из .env или используем папку по умолчанию (рядом с этим файлом)
+base_path = os.getenv("PERSONAL_CHATS_PATH")
+if base_path:
+    PERSONAL_CHATS_FILE = Path(base_path) / "personal_chats.json"
+else:
+    PERSONAL_CHATS_FILE = Path(__file__).parent / "personal_chats.json"
+
+# Убедимся, что папка существует
+PERSONAL_CHATS_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 def load_personal_chats():
     if not PERSONAL_CHATS_FILE.exists():
@@ -15,7 +28,7 @@ def save_personal_chats(chats):
 
 def get_admin_chats(admin_id):
     chats = load_personal_chats()
-    return chats.get(str(admin_id), [])
+    return chats.get(str(admin_id), {})
 
 def add_personal_chat(admin_id, chat_id, name):
     chats = load_personal_chats()
