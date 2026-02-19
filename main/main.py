@@ -35,11 +35,16 @@ MONITOR_ID = os.getenv("MONITOR_ID")
 client = Client(MAX_TOKEN)
 client_bot = Client_bot(MAX_TOKEN)
 
+
 def check_file_type(message: Message) -> str:
     match message._type:
-        case "VIDEO": return f'<b>🪛 Необработанные файлы:</b> Видеофайл'
-        case "AUDIO": return f'<b>🪛 Необработанные файлы:</b> Аудиофайл'
-        case _: return ""
+        case "VIDEO":
+            return f'<b>🪛 Необработанные файлы:</b> Видеофайл'
+        case "AUDIO":
+            return f'<b>🪛 Необработанные файлы:</b> Аудиофайл'
+        case _:
+            return ""
+
 
 def get_forward_usr_name(message: Message) -> str:
     match message.forward_type:
@@ -48,12 +53,14 @@ def get_forward_usr_name(message: Message) -> str:
         case "CHANNEL":
             return message.kwargs["link"]["chatName"]
 
+
 def get_usr_name(message: Message) -> str:
     match message.type:
-        case "USER" :
+        case "USER":
             return message.user.contact.names[0].name
         case "CHANNEL":
             return "Администратор канала"
+
 
 def get_chatname(message: Message) -> str:
     match message.type:
@@ -62,17 +69,20 @@ def get_chatname(message: Message) -> str:
         case "CHANNEL":
             return f"<b>💬 Из канала \"{message.chatname}\"</b>:"
 
+
 def get_file_url(message: Message) -> str:
     if message.url:
         return f'<b>🔗 Файл по ссылке:</b> {message.url}'
     else:
         return ""
 
+
 @client.on_connect
 def onconnect():
     if client.me != None:
         print(f'[{client.current_time()}] Имя: {client.me.contact.names[0].name}, Номер: {client.me.contact.phone}'
               f' | ID: {client.me.contact.id}\n')
+
 
 @client.on_message(filters.any())
 def onmessage(client: Client, message: Message):
@@ -136,20 +146,19 @@ def onmessage(client: Client, message: Message):
             # Список вложений (если есть)
             attachments = [attach['baseUrl'] for attach in msg_attaches if 'baseUrl' in attach]
 
-            # --- НОВАЯ ЛОГИКА ОТПРАВКИ ---
-            if personal_chats.is_personal_chat(message.chat.id):
-                # Отправляем в личку каждому администратору
-                for admin_id in TG_ADMIN_ID:
+            for admin_id in TG_ADMIN_ID:
+                if personal_chats.is_personal_chat_for_admin(admin_id, message.chat.id):
                     try:
                         send_to_telegram(TG_BOT_TOKEN, int(admin_id), caption, attachments)
                     except Exception as e:
-                        print(f"Ошибка отправки личного сообщения админу {admin_id}: {e}")
-            else:
-                # Обычная отправка в общий чат
+                        print(f"Ошибка отправки админу {admin_id}: {e}")
+
+                # Если чат не является личным ни для кого, отправляем в общий чат
+            if not any(personal_chats.is_personal_chat_for_admin(admin, message.chat.id) for admin in TG_ADMIN_ID):
                 send_to_telegram(TG_BOT_TOKEN, TG_CHAT_ID, caption, attachments)
 
 def status_bot():
-    #---Обработчики--
+    # ---Обработчики--
     def errorHandler(func):
         def wrapper(message):
             try:
@@ -157,6 +166,7 @@ def status_bot():
             except Exception as e:
                 client_bot.disconnect()
                 bot.send_message(message.chat.id, f"Ошибка: {e}❌")
+
         return wrapper
 
     def isAdmin(func):
@@ -166,14 +176,17 @@ def status_bot():
                 func(message)
             else:
                 bot.send_message(message.chat.id, "Вы не можете воспользоваться данной командой!❌")
+
         return wrapper
-    def fstub(func): #заглушка
+
+    def fstub(func):  # заглушка
         def wrapper(message):
             if 1 == 1:
                 bot.send_message(message.chat.id, f"Функция на стадии разработки⏳")
+
         return wrapper
 
-    #---Конец обработчиков---
+    # ---Конец обработчиков---
 
     @bot.message_handler(commands=['status'])
     @errorHandler
@@ -191,7 +204,7 @@ def status_bot():
 
 <b>Ведется разработка на языке Java</b>
 
-<U>Версия: 1.3 beta от 19.02.26</U>
+<U>Версия: 1.4 beta от 19.02.26</U>
 
 Чтобы увидеть список команд,
 введите /help
@@ -203,7 +216,7 @@ def status_bot():
     @errorHandler
     @isAdmin
     def send(message):
-        argument_list = message.text.split(" ") #Парсинг сообщения
+        argument_list = message.text.split(" ")  # Парсинг сообщения
         if len(argument_list) < 3:
             bot.send_message(message.chat.id, "Вы не ввели id или сообщение после /send❌")  # Если текст пустой
         else:
@@ -216,11 +229,13 @@ def status_bot():
                 case _:
                     client_bot.run()
                     recv = client_bot.send_message(chat_id=int(max_chat_id), text=message_body)
-                    #Отправка сообщения
+                    # Отправка сообщения
                     if not recv:
                         name = client_bot.get_chats(id=int(max_chat_id))
-                        bot.send_message(message.chat.id, f'Сообщение в чат <b>"{name.upper()}"</b> было успешно отправлено✅')
-                    else: bot.send_message(message.chat.id, f"При отправке сообщения произошла ошибка: {recv}❌")
+                        bot.send_message(message.chat.id,
+                                         f'Сообщение в чат <b>"{name.upper()}"</b> было успешно отправлено✅')
+                    else:
+                        bot.send_message(message.chat.id, f"При отправке сообщения произошла ошибка: {recv}❌")
 
                     client_bot.disconnect()
 
@@ -228,6 +243,7 @@ def status_bot():
     @errorHandler
     @isAdmin
     def add_personal(message):
+        admin_id = message.from_user.id
         args = message.text.split()
         if len(args) < 2:
             bot.send_message(message.chat.id, "❌ Использование: /add <chat_id> [название]")
@@ -237,30 +253,30 @@ def status_bot():
         except ValueError:
             bot.send_message(message.chat.id, "❌ ID чата должен быть числом")
             return
-
         if len(args) >= 3:
             name = " ".join(args[2:])
         else:
+            # Получаем название через client_bot
             client_bot.run()
             try:
                 name = client_bot.get_chats(chat_id)
                 if not name:
-                    bot.send_message(message.chat.id, "❌ Не удалось получить название чата. Проверьте ID.")
+                    bot.send_message(message.chat.id, "❌ Не удалось получить название чата")
                     client_bot.disconnect()
                     return
             except Exception as e:
-                bot.send_message(message.chat.id, f"❌ Ошибка при получении названия: {e}")
+                bot.send_message(message.chat.id, f"❌ Ошибка: {e}")
                 client_bot.disconnect()
                 return
             client_bot.disconnect()
-
-        personal_chats.add_personal_chat(chat_id, name)
-        bot.send_message(message.chat.id, f"✅ Чат {chat_id} ({name}) добавлен в список личных.")
+        personal_chats.add_personal_chat(admin_id, chat_id, name)
+        bot.send_message(message.chat.id, f"✅ Чат {chat_id} ({name}) добавлен в ваш личный список.")
 
     @bot.message_handler(commands=['remove'])
     @errorHandler
     @isAdmin
     def remove_personal(message):
+        admin_id = message.from_user.id
         args = message.text.split()
         if len(args) != 2:
             bot.send_message(message.chat.id, "❌ Использование: /remove <chat_id>")
@@ -270,22 +286,22 @@ def status_bot():
         except ValueError:
             bot.send_message(message.chat.id, "❌ ID чата должен быть числом")
             return
-
-        if personal_chats.remove_personal_chat(chat_id):
-            bot.send_message(message.chat.id, f"✅ Чат {chat_id} удалён из списка личных.")
+        if personal_chats.remove_personal_chat(admin_id, chat_id):
+            bot.send_message(message.chat.id, f"✅ Чат {chat_id} удалён из вашего списка.")
         else:
-            bot.send_message(message.chat.id, f"❌ Чат {chat_id} не найден в списке.")
+            bot.send_message(message.chat.id, f"❌ Чат {chat_id} не найден в вашем списке.")
 
     @bot.message_handler(commands=['idprop', 'list', 'personal'])
     @errorHandler
     @isAdmin
     def list_personal(message):
-        chats = personal_chats.get_personal_chats()
+        admin_id = message.from_user.id
+        chats = personal_chats.get_admin_chat_list(admin_id)
         if not chats:
-            bot.send_message(message.chat.id, "📭 Список личных чатов пуст.")
+            bot.send_message(message.chat.id, "📭 Ваш список личных чатов пуст.")
             return
         lines = [f"<code>{cid}</code> — {name}" for cid, name in chats.items()]
-        bot.send_message(message.chat.id, "📋 Личные чаты (пересылаются в ЛС):\n" + "\n".join(lines), parse_mode="HTML")
+        bot.send_message(message.chat.id, "📋 Ваши личные чаты:\n" + "\n".join(lines), parse_mode="HTML")
 
     @bot.message_handler(commands=['bc'])
     @errorHandler
@@ -352,32 +368,32 @@ def status_bot():
     @errorHandler
     def help(message):
         bot.send_message(message.chat.id, """
-<b><U>ОБЩЕДОСТУПНЫЕ КОМАНДЫ:</U></b>
-/start - стартовое сообщение
+    <b><U>ОБЩЕДОСТУПНЫЕ КОМАНДЫ:</U></b>
+    /start - стартовое сообщение
 
-/status - статус бота
+    /status - статус бота
 
-/help - список команд
+    /help - список команд
 
-<b><U>КОМАНДЫ ДЛЯ АДМИНА:</U></b>
-/send {чат-id чата из MAX} {Сообщение (только текст)} - ДОСТУПНО ТОЛЬКО АДМИНАМ отправить сообщение в чат MAX по чат-id
+    <b><U>КОМАНДЫ ДЛЯ АДМИНА:</U></b>
+    /send {чат-id чата из MAX} {Сообщение (только текст)} - ДОСТУПНО ТОЛЬКО АДМИНАМ отправить сообщение в чат MAX по чат-id
 
-/lschat - ДОСТУПНО ТОЛЬКО АДМИНАМ список обработанных чатов
+    /lschat - ДОСТУПНО ТОЛЬКО АДМИНАМ список обработанных чатов
 
-/pin - ДОСТУПНО ТОЛЬКО АДМИНАМ включить/отключить закрепление сообщений ботом
+    /pin - ДОСТУПНО ТОЛЬКО АДМИНАМ включить/отключить закрепление сообщений ботом
 
-/max_id {номер телефона} - ДОСТУПНО ТОЛЬКО АДМИНАМ получить чат-id из MAX по номеру телефона
+    /max_id {номер телефона} - ДОСТУПНО ТОЛЬКО АДМИНАМ получить чат-id из MAX по номеру телефона
 
-/bc {ID чата Telegram (0 - всем)} {текст} - отправить сообщение от имени бота в Telegram-чаты
+    /bc {ID чата Telegram (0 - всем)} {текст} - отправить сообщение от имени бота в Telegram-чаты
 
-/tgchats - выводит список чатов Telegram в которые доступна рассылка
+    /tgchats - выводит список чатов Telegram в которые доступна рассылка
 
-/add <chat_id> [название] – добавить чат в список личных
+    /add {chat_id} [название] – добавить чат в список личных
 
-/remove <chat_id> – удалить чат из списка личных
+    /remove {chat_id} – удалить чат из списка личных
 
-/idprop (или /list, /personal) – показать все сохранённые личные чаты с их названиями
-        """)
+    /idprop (или /list, /personal) – показать все сохранённые личные чаты с их названиями
+            """)
 
     @bot.message_handler(commands=['lschat'])
     @errorHandler
@@ -385,10 +401,11 @@ def status_bot():
     def ls(message):
         ls = get_chatlist()
         if ls:
-            bot.send_message(message.chat.id,f"""<b>Список обработанных чатов:</b>
-            
+            bot.send_message(message.chat.id, f"""<b>Список обработанных чатов:</b>
+
 {ls}""")
-        else: bot.send_message(message.chat.id,f"Список обработанных чатов пуст!❌")
+        else:
+            bot.send_message(message.chat.id, f"Список обработанных чатов пуст!❌")
 
     @bot.message_handler(commands=['pin'])
     @errorHandler
@@ -418,10 +435,11 @@ def status_bot():
                 res = f"""<b>ПОЛЬЗОВАТЕЛЬ</b> {recv.contact.names[0].name}
                 <b>CHAT_ID</b> <code>{recv.chat.id}</code>"""
                 bot.send_message(message.chat.id, res)
-            else: bot.send_message(message.chat.id, "Аккаунт по номеру телефона не найден⛔")
+            else:
+                bot.send_message(message.chat.id, "Аккаунт по номеру телефона не найден⛔")
             client_bot.disconnect()
-        else: bot.send_message(message.chat.id, "Вы не ввели номер‼️")
-
+        else:
+            bot.send_message(message.chat.id, "Вы не ввели номер‼️")
 
     while True:
         try:
@@ -431,6 +449,7 @@ def status_bot():
             print("Ошибка статус-бота")
             time.sleep(10)
             pass
+
 
 if __name__ == "__main__":
     client.run()

@@ -13,21 +13,32 @@ def save_personal_chats(chats):
     with open(PERSONAL_CHATS_FILE, "w", encoding="utf-8") as f:
         json.dump(chats, f, ensure_ascii=False, indent=4)
 
-def add_personal_chat(chat_id, name):
+def get_admin_chats(admin_id):
     chats = load_personal_chats()
-    chats[str(chat_id)] = name
+    return chats.get(str(admin_id), [])
+
+def add_personal_chat(admin_id, chat_id, name):
+    chats = load_personal_chats()
+    admin_key = str(admin_id)
+    if admin_key not in chats:
+        chats[admin_key] = {}
+    chats[admin_key][str(chat_id)] = name
     save_personal_chats(chats)
 
-def remove_personal_chat(chat_id):
+def remove_personal_chat(admin_id, chat_id):
     chats = load_personal_chats()
-    if str(chat_id) in chats:
-        del chats[str(chat_id)]
+    admin_key = str(admin_id)
+    if admin_key in chats and str(chat_id) in chats[admin_key]:
+        del chats[admin_key][str(chat_id)]
         save_personal_chats(chats)
         return True
     return False
 
-def get_personal_chats():
-    return load_personal_chats()
+def get_admin_chat_list(admin_id):
+    chats = load_personal_chats()
+    return chats.get(str(admin_id), {})
 
-def is_personal_chat(chat_id):
-    return str(chat_id) in load_personal_chats()
+def is_personal_chat_for_admin(admin_id, chat_id):
+    chats = load_personal_chats()
+    admin_chats = chats.get(str(admin_id), {})
+    return str(chat_id) in admin_chats
