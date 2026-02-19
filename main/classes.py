@@ -20,7 +20,6 @@ def get_chatlist():
         res += f"{name}: <code>{chat_id}</code>\n\n"
     return res
 
-# region Name
 class Name:
     def __init__(self, name='', firstName='', lastName='', type=''):
         """
@@ -34,7 +33,6 @@ class Name:
         self.type = type
         self.name = f"{firstName} {lastName}".rstrip()
 
-# region Contact
 class Contact:
     def __init__(self, client, accountStatus = None, baseUrl = None, names = None, phone = None, description = None,
                  options = None, photoId = None, updateTime = None, id = None, baseRawUrl = None,
@@ -58,24 +56,19 @@ class Contact:
         self.link = link
         self.gender = gender
         self.base_raw_url = baseRawUrl
-    
-    # region add()
+
     def add(self):
         return self._client.contact_add(self.id)
-    
-    # region remove()
+
     def remove(self):
         return self._client.contact_remove(self.id)
-    
-    # region block()
+
     def block(self):
         return self._client.contact_block(self.id)
-    
-    # region unblock()
+
     def unblock(self):
         return self._client.contact_unblock(self.id)
 
-# region User
 class User:
     def __init__(self, client, profile, _f=0):
         """
@@ -94,7 +87,6 @@ class User:
 
             pass
 
-# region Chat
 class Chat:
     def __init__(self, client, chat_id):
         """
@@ -140,11 +132,9 @@ class Chat:
             except IndexError:
                 pass
 
-    # region pin()
     def pin(self):
         self._client.pin_chat(self.id)
 
-    # region unpin()
     def unpin(self):
         self._client.unpin_chat(self.id)
 
@@ -153,7 +143,6 @@ class Chat:
         # {"ver":11,"cmd":0,"seq":seq,"opcode":48,"payload":{"chatIds":[chatid]}}
         pass
 
-# region Message
 class Message:
 
     def __init__(self, client, chatId: str, sender: str = None, id = None, time = None, text = None, type = None, _f=0, **kwargs):
@@ -218,12 +207,6 @@ class Message:
 
         else: return None
 
-
-
-
-
-    
-    # region reply()
     def reply(self, text: str, **kwargs) -> "Message":
         """
         Replies to the current message in its chat.
@@ -243,8 +226,7 @@ class Message:
             ```
         """
         return self._client.send_message(self.chat.id, text, self.id, **kwargs)
-    
-    # region answer()
+
     def answer(self, text: str, **kwargs) -> "Message":
         """
         Sends a new message in the same chat without linking it as a reply.
@@ -265,7 +247,6 @@ class Message:
         """
         return self._client.send_message(self.chat.id, text, **kwargs)
 
-    # region delete()
     def delete(self, for_me = False):
         """
         Deletes the current message from its chat.
@@ -285,8 +266,7 @@ class Message:
             ```
         """
         return self._client.delete_message(self.chat.id, [self.id], for_me)
-    
-    # region edit()
+
     def edit(self, text: str) -> "Message":
         """
         Edits the text content of the current message.
@@ -306,8 +286,7 @@ class Message:
             ```
         """
         return self._client.edit_message(self.chat.id, self.id, text)
-    
-    # region react()
+
     def react(self, reaction: EMOJIS) -> "Reactions":
         """
         Reacts to the current message with a specified emoji.
@@ -320,13 +299,11 @@ class Message:
         """
         return self._client.set_reaction(self.chat.id, self.id, reaction)
 
-# region Reaction
 class Reaction:
     def __init__(self, reaction: str, count: int):
         self.reaction = reaction
         self.count = count
 
-# region Reactions
 class Reactions:
     def __init__(self, **kwargs):
         reaction_info = kwargs.get('reactionInfo', {})

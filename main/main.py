@@ -1,3 +1,5 @@
+from telebot.formatting import escape_html
+
 from max import MaxClient as Client
 from max_bot import MaxClientBot as Client_bot
 from filters import filters, user
@@ -86,79 +88,95 @@ def onconnect():
 
 @client.on_message(filters.any())
 def onmessage(client: Client, message: Message):
-    forward = None
-    link = False
-    if message.chat.id in MAX_CHAT_IDS:  # Если добавить not, то исключит эти чаты из парсинга
-        msg_text = message.text
-        msg_attaches = message.attaches
-        name = get_usr_name(message)
+    try:
+        # === Загружаем все персональные ID чатов (строки) ===
+        all_personal_ids = set()
+        chats_data = personal_chats.load_personal_chats()  # словарь {admin_id: {chat_id: name}}
+        for admin_chats in chats_data.values():
+            all_personal_ids.update(admin_chats.keys())   # ключи — строковые ID чатов
 
-        # Обработка пересланных сообщений
-        if "link" in message.kwargs.keys():
-            if "type" in message.kwargs["link"]:
-                if message.kwargs["link"]["type"] == "REPLY":
-                    # REPLY пока не обрабатывается (заглушка)
-                    pass
-                if message.kwargs["link"]["type"] == "FORWARD":
-                    msg_text = message.kwargs["link"]["message"]["text"]
-                    msg_attaches = message.kwargs["link"]["message"]["attaches"]
+        # Проверяем, есть ли chat.id в глобальном списке или в персональных
+        if message.chat.id in MAX_CHAT_IDS or str(message.chat.id) in all_personal_ids:
+            print(f"[DEBUG] Обрабатывается chat.id {message.chat.id}")
+
+            forward = None
+            link = False
+            msg_text = escape_html(message.text) if message.text else ""
+            name = get_usr_name(message)
+            chat_header = get_chatname(message)
+
+            # Обработка пересланных сообщений
+            if "link" in message.kwargs:
+                link_info = message.kwargs["link"]
+                if link_info.get("type") == "FORWARD":
+                    forwarded = link_info.get("message", {})
+                    msg_text = escape_html(forwarded.get("text", ""))
+                    msg_attaches = forwarded.get("attaches", [])
                     forwarded_msg_author = get_forward_usr_name(message)
                     forward = f"♻️ <U>Переслал(а) сообщение от:</U> 👤 {forwarded_msg_author}"
                     link = True
+                elif link_info.get("type") == "REPLY":
+                    pass  # REPLY пока не обрабатывается
 
-        if msg_text != "" or msg_attaches != []:
-            # Формируем текст сообщения в зависимости от статуса
-            if message.status == "REMOVED":
-                caption = f"""
-{get_chatname(message)}
-<b>📜 Чат: \"{message.chatname}\" 
+            # Если есть текст или вложения
+            if msg_text or message.attaches or (link and msg_attaches):
+                time_str = datetime.now().strftime('%H:%M:%S')
+                file_url_str = get_file_url(message)
+                file_type_str = check_file_type(message)
+
+                # Формируем сообщение в зависимости от статуса
+                if message.status == "REMOVED":
+                    caption = f"""
+{chat_header}
+<b>📜 Чат: \"{escape_html(message.chatname)}\" 
 👤 {name}</b>:
 <b>❯ Операция:</b> <U>❌Удалил(а) сообщение:</U>
 
 <b>💬 Сообщение:</b> 
 ❯ {msg_text}
-<b>{datetime.now().strftime('%H:%M:%S')}</b>
-{get_file_url(message)}
-{check_file_type(message)}"""
-            elif message.status == "EDITED":
-                caption = f"""
-<b>📜 Чат: \"{message.chatname}\"
+<b>{time_str}</b>
+{file_url_str}
+{file_type_str}"""
+                elif message.status == "EDITED":
+                    caption = f"""
+<b>📜 Чат: \"{escape_html(message.chatname)}\"
 👤 {name}</b>
 <b>❯ Операция:</b> <U>✏️Изменил(а) сообщение:</U>
 
 <b>💬 Сообщение: 
 ❯ {msg_text}</b>
-<b>🕒 {datetime.now().strftime('%H:%M:%S')}</b>
-{get_file_url(message)}
-{check_file_type(message)}"""
-            else:
-                caption = f"""
-<b>📜 Чат: \"{message.chatname}\"; 
+<b>{time_str}</b>
+{file_url_str}
+{file_type_str}"""
+                else:
+                    caption = f"""
+<b>📜 Чат: \"{escape_html(message.chatname)}\"; 
 👤 {name}</b>
 {forward if link else '<b>❯ Операция:</b> <U>📨Отправил(а) сообщение</U>'}
 
 <b>💬 Сообщение:</b> 
 ❯ {msg_text}
-<b>🕒 {datetime.now().strftime('%H:%M:%S')}</b>
-{get_file_url(message)}
-{check_file_type(message)}"""
+<b>{time_str}</b>
+{file_url_str}
+{file_type_str}"""
 
-            # Список вложений (если есть)
-            attachments = [attach['baseUrl'] for attach in msg_attaches if 'baseUrl' in attach]
+                attaches_to_send = message.attaches if not link else msg_attaches
+                attachments = [attach['baseUrl'] for attach in attaches_to_send if 'baseUrl' in attach]
 
-            for admin_id in TG_ADMIN_ID:
-                if personal_chats.is_personal_chat_for_admin(admin_id, message.chat.id):
-                    try:
+                # Отправка
+                sent_to_admin = False
+                for admin_id in TG_ADMIN_ID:
+                    if personal_chats.is_personal_chat_for_admin(admin_id, message.chat.id):
                         send_to_telegram(TG_BOT_TOKEN, int(admin_id), caption, attachments)
-                    except Exception as e:
-                        print(f"Ошибка отправки админу {admin_id}: {e}")
-
-                # Если чат не является личным ни для кого, отправляем в общий чат
-            if not any(personal_chats.is_personal_chat_for_admin(admin, message.chat.id) for admin in TG_ADMIN_ID):
-                send_to_telegram(TG_BOT_TOKEN, TG_CHAT_ID, caption, attachments)
+                        sent_to_admin = True
+                if not sent_to_admin:
+                    send_to_telegram(TG_BOT_TOKEN, TG_CHAT_ID, caption, attachments)
+    except Exception as e:
+        print(f"[ОШИБКА в onmessage]: {e}")
+        import traceback
+        traceback.print_exc()
 
 def status_bot():
-    # ---Обработчики--
     def errorHandler(func):
         def wrapper(message):
             try:
@@ -166,7 +184,6 @@ def status_bot():
             except Exception as e:
                 client_bot.disconnect()
                 bot.send_message(message.chat.id, f"Ошибка: {e}❌")
-
         return wrapper
 
     def isAdmin(func):
@@ -176,17 +193,13 @@ def status_bot():
                 func(message)
             else:
                 bot.send_message(message.chat.id, "Вы не можете воспользоваться данной командой!❌")
-
         return wrapper
 
     def fstub(func):  # заглушка
         def wrapper(message):
             if 1 == 1:
                 bot.send_message(message.chat.id, f"Функция на стадии разработки⏳")
-
         return wrapper
-
-    # ---Конец обработчиков---
 
     @bot.message_handler(commands=['status'])
     @errorHandler
@@ -216,12 +229,12 @@ def status_bot():
     @errorHandler
     @isAdmin
     def send(message):
-        argument_list = message.text.split(" ")  # Парсинг сообщения
+        argument_list = message.text.split(" ")
         if len(argument_list) < 3:
-            bot.send_message(message.chat.id, "Вы не ввели id или сообщение после /send❌")  # Если текст пустой
+            bot.send_message(message.chat.id, "Вы не ввели id или сообщение после /send❌")
         else:
             max_chat_id = argument_list[1]
-            message_body = " ".join(argument_list[2::])  # Текст после /send
+            message_body = " ".join(argument_list[2::])
 
             match int(max_chat_id):
                 case 0:
@@ -229,7 +242,6 @@ def status_bot():
                 case _:
                     client_bot.run()
                     recv = client_bot.send_message(chat_id=int(max_chat_id), text=message_body)
-                    # Отправка сообщения
                     if not recv:
                         name = client_bot.get_chats(id=int(max_chat_id))
                         bot.send_message(message.chat.id,
@@ -256,7 +268,6 @@ def status_bot():
         if len(args) >= 3:
             name = " ".join(args[2:])
         else:
-            # Получаем название через client_bot
             client_bot.run()
             try:
                 name = client_bot.get_chats(chat_id)
@@ -316,7 +327,6 @@ def status_bot():
         text = " ".join(argument_list[2::])
 
         if raw_target == "0":
-            # Рассылка во все чаты из TG_TARGET_CHAT_IDS
             if not TG_TARGET_CHAT_IDS:
                 bot.send_message(message.chat.id, "❌ Список чатов для рассылки пуст (TG_TARGET_CHAT_IDS не задан).")
                 return
@@ -331,7 +341,6 @@ def status_bot():
             summary = "\n".join(results)
             bot.send_message(message.chat.id, f"📨 Результаты рассылки: \n{summary}")
         else:
-            # Отправка в один конкретный чат
             try:
                 target_chat_id = int(raw_target)
             except ValueError:
