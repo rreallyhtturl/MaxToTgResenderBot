@@ -11,6 +11,7 @@ import os
 import json
 from datetime import datetime
 from Scheduler import start_scheduler
+import personal_chats
 
 load_dotenv()
 MAX_TOKEN = os.getenv("MAX_TOKEN")
@@ -77,14 +78,17 @@ def onconnect():
 def onmessage(client: Client, message: Message):
     forward = None
     link = False
-    if message.chat.id in MAX_CHAT_IDS: #Если добавить not, то тогда парсер будет исключать чат-id из списка тех, которые он парсит
+    if message.chat.id in MAX_CHAT_IDS:  # Если добавить not, то исключит эти чаты из парсинга
         msg_text = message.text
         msg_attaches = message.attaches
         name = get_usr_name(message)
+
+        # Обработка пересланных сообщений
         if "link" in message.kwargs.keys():
             if "type" in message.kwargs["link"]:
-                if message.kwargs["link"]["type"] == "REPLY":  # TODO
-                    ...
+                if message.kwargs["link"]["type"] == "REPLY":
+                    # REPLY пока не обрабатывается (заглушка)
+                    pass
                 if message.kwargs["link"]["type"] == "FORWARD":
                     msg_text = message.kwargs["link"]["message"]["text"]
                     msg_attaches = message.kwargs["link"]["message"]["attaches"]
@@ -93,12 +97,9 @@ def onmessage(client: Client, message: Message):
                     link = True
 
         if msg_text != "" or msg_attaches != []:
-            match message.status:
-                case "REMOVED":
-                    send_to_telegram(
-                        TG_BOT_TOKEN,
-                        TG_CHAT_ID,
-                        f"""
+            # Формируем текст сообщения в зависимости от статуса
+            if message.status == "REMOVED":
+                caption = f"""
 {get_chatname(message)}
 <b>📜 Чат: \"{message.chatname}\" 
 👤 {name}</b>:
@@ -108,13 +109,9 @@ def onmessage(client: Client, message: Message):
 ❯ {msg_text}
 <b>{datetime.now().strftime('%H:%M:%S')}</b>
 {get_file_url(message)}
-{check_file_type(message)}""",
-                        [attach['baseUrl'] for attach in msg_attaches if 'baseUrl' in attach])
-                case "EDITED":
-                    send_to_telegram(
-                        TG_BOT_TOKEN,
-                        TG_CHAT_ID,
-                        f"""
+{check_file_type(message)}"""
+            elif message.status == "EDITED":
+                caption = f"""
 <b>📜 Чат: \"{message.chatname}\"
 👤 {name}</b>
 <b>❯ Операция:</b> <U>✏️Изменил(а) сообщение:</U>
@@ -123,13 +120,9 @@ def onmessage(client: Client, message: Message):
 ❯ {msg_text}</b>
 <b>🕒 {datetime.now().strftime('%H:%M:%S')}</b>
 {get_file_url(message)}
-{check_file_type(message)}""",
-                        [attach['baseUrl'] for attach in msg_attaches if 'baseUrl' in attach])
-                case _:
-                    send_to_telegram(
-                        TG_BOT_TOKEN,
-                        TG_CHAT_ID,
-                        f"""
+{check_file_type(message)}"""
+            else:
+                caption = f"""
 <b>📜 Чат: \"{message.chatname}\"; 
 👤 {name}</b>
 {forward if link else '<b>❯ Операция:</b> <U>📨Отправил(а) сообщение</U>'}
@@ -138,8 +131,22 @@ def onmessage(client: Client, message: Message):
 ❯ {msg_text}
 <b>🕒 {datetime.now().strftime('%H:%M:%S')}</b>
 {get_file_url(message)}
-{check_file_type(message)}""",
-                        [attach['baseUrl'] for attach in msg_attaches if 'baseUrl' in attach])
+{check_file_type(message)}"""
+
+            # Список вложений (если есть)
+            attachments = [attach['baseUrl'] for attach in msg_attaches if 'baseUrl' in attach]
+
+            # --- НОВАЯ ЛОГИКА ОТПРАВКИ ---
+            if personal_chats.is_personal_chat(message.chat.id):
+                # Отправляем в личку каждому администратору
+                for admin_id in TG_ADMIN_ID:
+                    try:
+                        send_to_telegram(TG_BOT_TOKEN, int(admin_id), caption, attachments)
+                    except Exception as e:
+                        print(f"Ошибка отправки личного сообщения админу {admin_id}: {e}")
+            else:
+                # Обычная отправка в общий чат
+                send_to_telegram(TG_BOT_TOKEN, TG_CHAT_ID, caption, attachments)
 
 def status_bot():
     #---Обработчики--
@@ -184,7 +191,7 @@ def status_bot():
 
 <b>Ведется разработка на языке Java</b>
 
-<U>Версия: 1.2.2 beta от 19.02.26</U>
+<U>Версия: 1.3 beta от 19.02.26</U>
 
 Чтобы увидеть список команд,
 введите /help
@@ -216,6 +223,69 @@ def status_bot():
                     else: bot.send_message(message.chat.id, f"При отправке сообщения произошла ошибка: {recv}❌")
 
                     client_bot.disconnect()
+
+    @bot.message_handler(commands=['add'])
+    @errorHandler
+    @isAdmin
+    def add_personal(message):
+        args = message.text.split()
+        if len(args) < 2:
+            bot.send_message(message.chat.id, "❌ Использование: /add <chat_id> [название]")
+            return
+        try:
+            chat_id = int(args[1])
+        except ValueError:
+            bot.send_message(message.chat.id, "❌ ID чата должен быть числом")
+            return
+
+        if len(args) >= 3:
+            name = " ".join(args[2:])
+        else:
+            client_bot.run()
+            try:
+                name = client_bot.get_chats(chat_id)
+                if not name:
+                    bot.send_message(message.chat.id, "❌ Не удалось получить название чата. Проверьте ID.")
+                    client_bot.disconnect()
+                    return
+            except Exception as e:
+                bot.send_message(message.chat.id, f"❌ Ошибка при получении названия: {e}")
+                client_bot.disconnect()
+                return
+            client_bot.disconnect()
+
+        personal_chats.add_personal_chat(chat_id, name)
+        bot.send_message(message.chat.id, f"✅ Чат {chat_id} ({name}) добавлен в список личных.")
+
+    @bot.message_handler(commands=['remove'])
+    @errorHandler
+    @isAdmin
+    def remove_personal(message):
+        args = message.text.split()
+        if len(args) != 2:
+            bot.send_message(message.chat.id, "❌ Использование: /remove <chat_id>")
+            return
+        try:
+            chat_id = int(args[1])
+        except ValueError:
+            bot.send_message(message.chat.id, "❌ ID чата должен быть числом")
+            return
+
+        if personal_chats.remove_personal_chat(chat_id):
+            bot.send_message(message.chat.id, f"✅ Чат {chat_id} удалён из списка личных.")
+        else:
+            bot.send_message(message.chat.id, f"❌ Чат {chat_id} не найден в списке.")
+
+    @bot.message_handler(commands=['idprop', 'list', 'personal'])
+    @errorHandler
+    @isAdmin
+    def list_personal(message):
+        chats = personal_chats.get_personal_chats()
+        if not chats:
+            bot.send_message(message.chat.id, "📭 Список личных чатов пуст.")
+            return
+        lines = [f"<code>{cid}</code> — {name}" for cid, name in chats.items()]
+        bot.send_message(message.chat.id, "📋 Личные чаты (пересылаются в ЛС):\n" + "\n".join(lines), parse_mode="HTML")
 
     @bot.message_handler(commands=['bc'])
     @errorHandler
@@ -300,7 +370,13 @@ def status_bot():
 
 /bc {ID чата Telegram (0 - всем)} {текст} - отправить сообщение от имени бота в Telegram-чаты
 
-/tgchats - выводит список чатов Telegram в которые доступна рассылка 
+/tgchats - выводит список чатов Telegram в которые доступна рассылка
+
+/add <chat_id> [название] – добавить чат в список личных
+
+/remove <chat_id> – удалить чат из списка личных
+
+/idprop (или /list, /personal) – показать все сохранённые личные чаты с их названиями
         """)
 
     @bot.message_handler(commands=['lschat'])
