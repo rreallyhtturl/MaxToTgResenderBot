@@ -184,7 +184,7 @@ def status_bot():
 
 <b>Ведется разработка на языке Java</b>
 
-<U>Версия: 1.2 beta от 19.02.26</U>
+<U>Версия: 1.2.2 beta от 19.02.26</U>
 
 Чтобы увидеть список команд,
 введите /help
@@ -239,11 +239,11 @@ def status_bot():
             for chat_id in TG_TARGET_CHAT_IDS:
                 try:
                     bot.send_message(chat_id, text, parse_mode="HTML")
-                    results.append(f"✅ Чат {chat_id}: успешно")
+                    results.append(f"✅ Чат <code>{chat_id}</code>: успешно")
                 except Exception as e:
-                    results.append(f"❌ Чат {chat_id}: {e}")
+                    results.append(f"❌ Чат <code>{chat_id}</code>: {e}")
             summary = "\n".join(results)
-            bot.send_message(message.chat.id, f"📨 Результаты рассылки:\n{summary}")
+            bot.send_message(message.chat.id, f"📨 Результаты рассылки: \n{summary}")
         else:
             # Отправка в один конкретный чат
             try:
@@ -257,6 +257,26 @@ def status_bot():
                 bot.send_message(message.chat.id, f"✅ Сообщение отправлено в чат {target_chat_id}")
             except Exception as e:
                 bot.send_message(message.chat.id, f"❌ Ошибка: {e}")
+
+    @bot.message_handler(commands=['tgchats'])
+    @errorHandler
+    @isAdmin
+    def list_targets(message):
+        if not TG_TARGET_CHAT_IDS:
+            bot.send_message(message.chat.id, "Список целевых чатов для рассылки пуст.")
+            return
+        lines = []
+        for chat_id in TG_TARGET_CHAT_IDS:
+            try:
+                chat = bot.get_chat(chat_id)
+                if chat.type == 'private':
+                    name = f"{chat.first_name} {chat.last_name or ''}".strip()
+                else:
+                    name = chat.title
+                lines.append(f"<code>{chat_id}</code> - {name}")
+            except Exception as e:
+                lines.append(f"<code>{chat_id}</code> - (недоступен: {e})")
+        bot.send_message(message.chat.id, "📋 Целевые чаты для рассылки:\n" + "\n".join(lines), parse_mode="HTML")
 
     @bot.message_handler(commands=['help'])
     @errorHandler
@@ -278,7 +298,9 @@ def status_bot():
 
 /max_id {номер телефона} - ДОСТУПНО ТОЛЬКО АДМИНАМ получить чат-id из MAX по номеру телефона
 
-/bc {ID чата Telegram (0 - всем)} {текст} - отправить сообщение от имени бота в Telegram-чаты из списка TG_TARGET_CHAT_IDS
+/bc {ID чата Telegram (0 - всем)} {текст} - отправить сообщение от имени бота в Telegram-чаты
+
+/tgchats - выводит список чатов Telegram в которые доступна рассылка 
         """)
 
     @bot.message_handler(commands=['lschat'])
