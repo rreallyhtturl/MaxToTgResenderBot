@@ -21,6 +21,12 @@ TG_CHAT_ID = os.getenv("TG_CHAT_ID")
 TG_ADMIN_ID = [x for x in os.getenv("TG_ADMIN_ID").split(",")]
 bot = telebot.TeleBot(TG_BOT_TOKEN, parse_mode="HTML")
 
+TG_TARGET_CHAT_IDS = os.getenv("TG_TARGET_CHAT_IDS")
+if TG_TARGET_CHAT_IDS:
+    TG_TARGET_CHAT_IDS = [int(x.strip()) for x in TG_TARGET_CHAT_IDS.split(",")]
+else:
+    TG_TARGET_CHAT_IDS = []
+
 if MAX_TOKEN == "" or MAX_CHAT_IDS == [] or TG_BOT_TOKEN == "" or TG_CHAT_ID == "":
     print("Ошибка в .env, перепроверьтье")
 MONITOR_ID = os.getenv("MONITOR_ID")
@@ -178,7 +184,7 @@ def status_bot():
 
 <b>Ведется разработка на языке Java</b>
 
-<U>Версия: 0.9.8.1 beta от 17.02.26</U>
+<U>Версия: 1.2 beta от 19.02.26</U>
 
 Чтобы увидеть список команд,
 введите /help
@@ -211,6 +217,47 @@ def status_bot():
 
                     client_bot.disconnect()
 
+    @bot.message_handler(commands=['bc'])
+    @errorHandler
+    @isAdmin
+    def broadcast(message):
+        argument_list = message.text.split()
+        if len(argument_list) < 3:
+            bot.send_message(message.chat.id, "❌ Вы не ввели ID чата или текст сообщения после /bc")
+            return
+
+        raw_target = argument_list[1]
+        text = " ".join(argument_list[2::])
+
+        if raw_target == "0":
+            # Рассылка во все чаты из TG_TARGET_CHAT_IDS
+            if not TG_TARGET_CHAT_IDS:
+                bot.send_message(message.chat.id, "❌ Список чатов для рассылки пуст (TG_TARGET_CHAT_IDS не задан).")
+                return
+
+            results = []
+            for chat_id in TG_TARGET_CHAT_IDS:
+                try:
+                    bot.send_message(chat_id, text, parse_mode="HTML")
+                    results.append(f"✅ Чат {chat_id}: успешно")
+                except Exception as e:
+                    results.append(f"❌ Чат {chat_id}: {e}")
+            summary = "\n".join(results)
+            bot.send_message(message.chat.id, f"📨 Результаты рассылки:\n{summary}")
+        else:
+            # Отправка в один конкретный чат
+            try:
+                target_chat_id = int(raw_target)
+            except ValueError:
+                bot.send_message(message.chat.id, "❌ ID чата должен быть числом (или 0 для рассылки).")
+                return
+
+            try:
+                bot.send_message(target_chat_id, text, parse_mode="HTML")
+                bot.send_message(message.chat.id, f"✅ Сообщение отправлено в чат {target_chat_id}")
+            except Exception as e:
+                bot.send_message(message.chat.id, f"❌ Ошибка: {e}")
+
     @bot.message_handler(commands=['help'])
     @errorHandler
     def help(message):
@@ -230,6 +277,8 @@ def status_bot():
 /pin - ДОСТУПНО ТОЛЬКО АДМИНАМ включить/отключить закрепление сообщений ботом
 
 /max_id {номер телефона} - ДОСТУПНО ТОЛЬКО АДМИНАМ получить чат-id из MAX по номеру телефона
+
+/bc {ID чата Telegram (0 - всем)} {текст} - отправить сообщение от имени бота в Telegram-чаты из списка TG_TARGET_CHAT_IDS
         """)
 
     @bot.message_handler(commands=['lschat'])
@@ -288,7 +337,4 @@ def status_bot():
 if __name__ == "__main__":
     client.run()
     threading.Thread(target=status_bot, daemon=True).start()
-
     start_scheduler()
-
-    threading.Thread(target=status_bot, daemon=True).start()

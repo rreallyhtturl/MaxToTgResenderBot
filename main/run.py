@@ -2,10 +2,11 @@ import os
 import sys
 import signal
 import subprocess
+import time
+import datetime
 from dotenv import load_dotenv
 from telegram import send_to_telegram
 
-# Загружаем переменные окружения
 load_dotenv()
 
 TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
@@ -22,38 +23,45 @@ except ValueError:
     sys.exit(1)
 
 def send_notification(text: str) -> None:
-    """Отправляет уведомление в Telegram через существующую функцию."""
     try:
         send_to_telegram(TG_BOT_TOKEN, TG_CHAT_ID, text)
         print(f"Отправлено: {text}")
     except Exception as e:
         print(f"Не удалось отправить уведомление: {e}")
 
-def main() -> None:
-    # Отправляем сообщение о запуске
+def run_main_loop():
     send_notification("Бот запущен✅")
-
-    # Запускаем starter.py как дочерний процесс
-    process = subprocess.Popen([sys.executable, "starter.py"])
+    process = None
 
     def signal_handler(sig, frame):
-        """Обработка сигналов завершения (Ctrl+C, SIGTERM)."""
-        print(f"Получен сигнал {sig}, завершаем starter...")
-        process.terminate()
-        process.wait()
+        print(f"Получен сигнал {sig}, завершаем main...")
+        if process:
+            process.terminate()
+            process.wait()
         send_notification("Бот остановлен⛔️")
         sys.exit(0)
 
-    # Регистрируем обработчики сигналов
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
-    # Ожидаем завершения starter.py
-    returncode = process.wait()
-    print(f"Starter завершился с кодом {returncode}")
-
-    # Если starter завершился сам (например, из-за критической ошибки), тоже уведомляем
-    send_notification(f"Бот остановлен (код {returncode})")
+    while True:
+        try:
+            print(f"[{datetime.datetime.now()}] Запуск main.py...")
+            process = subprocess.Popen([sys.executable, "main.py"])
+            process.wait()
+            exit_code = process.returncode
+            print(f"[{datetime.datetime.now()}] main.py завершился с кодом {exit_code}. Перезапуск через 3 секунды...")
+            time.sleep(3)
+        except KeyboardInterrupt:
+            print(f"\n[{datetime.datetime.now()}] Остановлено пользователем")
+            if process:
+                process.terminate()
+                process.wait()
+            send_notification("Бот остановлен⛔️")
+            break
+        except Exception as e:
+            print(f"[{datetime.datetime.now()}] Ошибка: {e}")
+            time.sleep(3)
 
 if __name__ == "__main__":
-    main()
+    run_main_loop()
