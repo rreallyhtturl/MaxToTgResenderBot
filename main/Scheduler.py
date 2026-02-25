@@ -4,44 +4,32 @@ from datetime import datetime
 from telegram import send_to_telegram
 import os
 from dotenv import load_dotenv
+import config_state
 
 load_dotenv()
 TG_BOT_TOKEN = os.getenv("TG_BOT_TOKEN")
 TG_CHAT_ID = int(os.getenv("TG_CHAT_ID"))
 
-TASKS = [
-    {"hour": 7, "minute": 00, "text": "Доброе утро!🌅"},
-    {"hour": 8, "minute": 30, "text": "Удачи в учебе!👩🏻‍💻"},
-    {"hour": 10, "minute": 00, "text": "Завтрак в школе!😋"},
-    {"hour": 12, "minute": 40, "text": "Обед в школе!🍽️"},
-    {"hour": 22, "minute": 00, "text": "Добрых сноведений!💤"},
-]
-
 def send_message(text: str):
-    """Отправляет текст в Telegram через существующую функцию."""
     send_to_telegram(TG_BOT_TOKEN, TG_CHAT_ID, text)
 
 def check_and_send():
-    """Проверяет текущее время и отправляет сообщения, если совпадает с задачей."""
     now = datetime.now()
     current_time = (now.hour, now.minute)
-    for task in TASKS:
+    for task in config_state.tasks_list:
+        task_id = str(task['id'])
+        if not config_state.tasks_enabled.get(task_id, True):
+            continue
         if (task["hour"], task["minute"]) == current_time:
-            # Отправляем в отдельном потоке, чтобы не задерживать цикл
             threading.Thread(target=send_message, args=(task["text"],), daemon=True).start()
 
 def scheduler_loop():
-    """
-    Бесконечный цикл, который каждые 60 секунд проверяет время и запускает задачи.
-    Работает в фоновом потоке.
-    """
     while True:
-        check_and_send()
+        if config_state.scheduler_enabled:
+            check_and_send()
         time.sleep(60 - datetime.now().second)
 
 def start_scheduler():
-    """Запускает планировщик в отдельном потоке-демоне."""
-    print("DEBUG: start_scheduler() вызван")
     thread = threading.Thread(target=scheduler_loop, daemon=True, name="SchedulerThread")
     thread.start()
-    print("[Scheduler] Планировщик запущен. Задачи:", ...)
+    print("[Scheduler] Планировщик запущен.")

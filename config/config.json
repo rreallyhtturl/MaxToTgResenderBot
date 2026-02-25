@@ -1,3 +1,9 @@
 {
-    "pin": "False"
+    "pin": "False",
+    "modules": {
+        "resender": true,
+        "scheduler": true
+    },
+    "tasks": {},
+    "scheduled_tasks": []
 }
